@@ -1,94 +1,108 @@
-# Bloc 2 / Bloc 3 / Bloc 4 — Projet final Data Engineer
+# PrevisionEnergie — Pipeline Data Engineer (Bloc 2 / 3 / 4)
 
-## Résumé
-Ce dépôt implémente le socle technique du projet ainsi que les extensions Bloc 3 et Bloc 4 :
-- ingestion multi-sources ;
-- pipeline Bronze → Silver ;
-- enrichissement optionnel de Kaggle par APIs ;
-- chargement Silver → SQL ;
-- requêtes SQL et API FastAPI ;
-- mise en place d’un mini entrepôt de données Gold en schéma en étoile ;
-- conservation d’un dataset Gold de restitution compatible avec l’existant ;
-- formalisation de l’architecture Data Lake et de la gouvernance associée.
+## Le projet
+Pipeline de données pour la prévision de consommation énergétique régionale en France.
 
-## Préparation rapide pour la soutenance
-La commande la plus simple pour préparer une base locale démontrable avec les données d’exemple du dépôt est :
+Ce dépôt couvre :
+- ingestion multi-sources (Kaggle, API RTE, Météo-France, data.gouv.fr) ;
+- pipeline Bronze → Silver (nettoyage, normalisation, DJU, quality reports) ;
+- entrepôt de données Gold en schéma en étoile Kimball ;
+- API REST FastAPI avec authentification Bearer ;
+- gouvernance Data Lake (RBAC, rétention, catalogue Atlas).
+
+## Lancement
 
 ```bash
+# Tout-en-un : initialise la base, transforme, charge, construit le Gold
 python scripts/run_demo_setup.py
-```
 
-Cette commande :
-- initialise la base SQLite ;
-- rejoue la transformation Bronze → Silver sur les fichiers d’exemple ;
-- charge la Silver dans SQL ;
-- construit la couche Gold DWH ;
-- génère le bundle Atlas et le manifeste Data Lake.
-
-## Lancement rapide détaillé
-```bash
-python scripts/init_db.py
-python scripts/run_transform.py --source kaggle
-python scripts/run_load.py --source kaggle
-python scripts/run_gold.py
+# Lancer l'API
 python scripts/run_api.py
+# -> http://127.0.0.1:8000/docs
 ```
+
+## Étape par étape
+
+```bash
+python scripts/init_db.py                        # Schéma SQLite
+python scripts/run_transform.py --source kaggle  # Bronze → Silver
+python scripts/run_load.py --source kaggle       # Silver → SQL
+python scripts/run_gold.py                       # Silver → Gold DWH
+python scripts/run_api.py                        # API FastAPI
+```
+
+## Tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+21 tests (unit + intégration).
 
 ## API
-Le projet expose une API FastAPI documentée automatiquement.
-Pour la démo locale, les identifiants par défaut sont définis dans `.env.example` et peuvent être surchargés dans `.env`.
 
-## Ce que fait désormais le Bloc 3
-Le projet conserve la logique du Bloc 2 mais ajoute une vraie couche DWH Gold :
-- dimensions : date, région, énergie, contexte météo ;
-- fait : consommation journalière par région et par énergie ;
-- chargement incrémental idempotent côté SQLite via upsert ;
-- préparation d’un positionnement Delta Lake dans la documentation et les scripts SQL dédiés.
+FastAPI avec documentation OpenAPI auto-générée sur `/docs`.
+Identifiants par défaut dans `.env.example`, surchargeables via `.env`.
 
-## Compatibilité avec l’existant
-La table `gold_daily_features` est conservée comme table de restitution / service dataset.
-Elle peut continuer à alimenter l’API ou des usages analytiques simples, tandis que le schéma en étoile sert de socle DWH.
+## Bloc 2 — Collecte, stockage, mise à disposition
 
-## Bloc 3 - E5 / E6
-Le dépôt est désormais harmonisé avec les attendus du Bloc 3 :
-- E5 : modélisation Kimball, tables Gold, loader Silver -> Gold, DDL cible Delta Lake ;
-- E6 : préparation du catalogue Atlas, lignage bout en bout, logique SCD2 sur `dim_region`.
+- 4 extracteurs : `app/ingestion/` (Kaggle, RTE, Météo-France, data.gouv)
+- Pipeline Bronze → Silver : `app/processing/pipeline.py`
+- Requêtes SQL paramétrées : `sql/queries/`
+- API REST : `app/api/`
 
-## Commandes utiles Bloc 3
+## Bloc 3 — Entrepôt de données
+
+- Schéma en étoile : 1 fait (`fact_energy_consumption_daily`) + 4 dimensions (date, région, énergie, contexte météo)
+- SCD Type 2 sur `dim_region` (valid_from / valid_to, hash MD5)
+- Chargement idempotent via MERGE upsert
+- Catalogue Atlas : `atlas/`
+- DDL cible Delta Lake : `sql/delta/create_gold_tables_delta.sql`
+
 ```bash
 python scripts/run_gold.py
 python scripts/export_atlas_metadata.py
-python scripts/run_bloc3_demo.py
 ```
 
-## Fichiers repères
-- `docs/block3_dwh.md`
-- `docs/block3_governance.md`
-- `docs/bloc3_referential_mapping.md`
+## Bloc 4 — Data Lake et gouvernance
 
-## Ce que fait désormais le Bloc 4
-Le Bloc 4 prolonge l’architecture Medallion existante sans la casser :
-- Bronze est formalisé en zone Raw ;
-- Silver est formalisé en zone Curated ;
-- Gold est formalisé en zone Consumption ;
-- une politique de rétention et un RBAC simple sont ajoutés ;
-- un manifeste Data Lake et un DAG Airflow-ready sont fournis pour illustrer l’industrialisation progressive.
+Le Bloc 4 formalise l'architecture Medallion existante :
+- Bronze → zone Raw
+- Silver → zone Curated
+- Gold → zone Consumption
 
-## Commandes utiles Bloc 4
+Ajouts :
+- RBAC 3 rôles : `app/governance/rbac.py`
+- Politique de rétention par zone : `app/governance/lifecycle.py`
+- DAG Airflow : `airflow/dags/energy_datalake_batch.py`
+- Manifeste Data Lake : `docs/datalake_manifest.json`
+
 ```bash
 python scripts/generate_datalake_manifest.py
-python scripts/export_atlas_metadata.py
 python scripts/run_bloc4_demo.py
 ```
 
-## Fichiers repères Bloc 4
-- `configs/datalake.yaml`
-- `docs/block4_datalake.md`
-- `docs/block4_governance.md`
-- `docs/block4_referential_mapping.md`
-- `airflow/dags/energy_datalake_batch.py`
+## Structure du projet
 
-## Références finales d'harmonisation
-- `docs/final_harmonization.md`
-- `docs/final_demo_path.md`
-- `docs/api_contract.md`
+```
+app/
+├── api/          # FastAPI (routers, schemas, auth)
+├── core/         # Config, logging, sécurité
+├── db/           # Connexion SQLite, loaders, repositories
+├── etl/          # Orchestration pipeline
+├── governance/   # RBAC, lifecycle
+├── ingestion/    # Extracteurs multi-sources
+├── processing/   # Bronze → Silver (cleaners, DJU, outliers, quality)
+├── storage/      # Abstraction StorageBackend (local / GCS)
+└── utils/
+sql/              # DDL, DML, requêtes, vues
+configs/          # YAML (settings, datalake, sources)
+atlas/            # Metadata catalogue Apache Atlas
+airflow/          # DAG batch
+tests/            # Unit + intégration
+docs/             # Architecture, API contract, data dictionary
+```
+
+## Stack
+
+Python 3.11 · FastAPI · Pandas · SQLite · Pydantic · pytest · Airflow (DAG)
