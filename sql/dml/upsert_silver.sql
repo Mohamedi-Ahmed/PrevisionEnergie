@@ -1,0 +1,62 @@
+-- Upsert cleaned / normalized daily rows into Silver.
+-- SQLite syntax using ON CONFLICT.
+
+INSERT INTO silver_energy_weather_daily (
+    source_name,
+    date,
+    region,
+    electricity_consumption,
+    gas_consumption,
+    temperature_mean,
+    temperature_min,
+    temperature_max,
+    humidity,
+    wind_speed,
+    precipitation,
+    dju_heating,
+    dju_cooling,
+    year,
+    month,
+    weekday,
+    is_weekend,
+    record_hash,
+    updated_at
+)
+VALUES (
+    :source_name,
+    :date,
+    :region,
+    :electricity_consumption,
+    :gas_consumption,
+    :temperature_mean,
+    :temperature_min,
+    :temperature_max,
+    :humidity,
+    :wind_speed,
+    :precipitation,
+    :dju_heating,
+    :dju_cooling,
+    :year,
+    :month,
+    :weekday,
+    :is_weekend,
+    :record_hash,
+    CURRENT_TIMESTAMP
+)
+ON CONFLICT(source_name, date, region) DO UPDATE SET
+    electricity_consumption = excluded.electricity_consumption,
+    gas_consumption = excluded.gas_consumption,
+    temperature_mean = excluded.temperature_mean,
+    temperature_min = excluded.temperature_min,
+    temperature_max = excluded.temperature_max,
+    humidity = excluded.humidity,
+    wind_speed = excluded.wind_speed,
+    precipitation = excluded.precipitation,
+    dju_heating = excluded.dju_heating,
+    dju_cooling = excluded.dju_cooling,
+    year = excluded.year,
+    month = excluded.month,
+    weekday = excluded.weekday,
+    is_weekend = excluded.is_weekend,
+    record_hash = excluded.record_hash,
+    updated_at = CURRENT_TIMESTAMP;

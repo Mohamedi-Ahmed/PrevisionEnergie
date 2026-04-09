@@ -1,0 +1,84 @@
+{
+  "entities": [
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "kaggle.france_energy_weather_daily",
+        "name": "Kaggle daily energy-weather dataset",
+        "description": "Primary source dataset"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "bronze.kaggle",
+        "name": "Bronze Kaggle dataset",
+        "description": "Raw ingested Kaggle files"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "silver.energy_weather_daily",
+        "name": "silver_energy_weather_daily",
+        "description": "Normalized Silver dataset"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.dim_date",
+        "name": "dim_date",
+        "description": "Date dimension"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.dim_region",
+        "name": "dim_region",
+        "description": "Region dimension with SCD2 fields"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.dim_energy",
+        "name": "dim_energy",
+        "description": "Energy dimension"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.dim_weather_context",
+        "name": "dim_weather_context",
+        "description": "Weather context dimension"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.fact_energy_consumption_daily",
+        "name": "fact_energy_consumption_daily",
+        "description": "Gold fact table"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "gold.gold_daily_features",
+        "name": "gold_daily_features",
+        "description": "Gold service dataset for API / analytics"
+      }
+    },
+    {
+      "typeName": "dataset",
+      "attributes": {
+        "qualifiedName": "api.features",
+        "name": "FastAPI /features endpoint",
+        "description": "Consumer-facing features endpoint"
+      }
+    }
+  ]
+}

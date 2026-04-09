@@ -1,0 +1,28 @@
+sources:
+  kaggle:
+    enabled: true
+    type: file
+    description: Main historical dataset for V1
+    bronze_subdir: bronze/kaggle
+    default_extension: csv
+
+  rte:
+    enabled: false
+    type: api
+    description: RTE API source placeholder
+    bronze_subdir: bronze/rte
+    default_extension: json
+
+  meteo_france:
+    enabled: false
+    type: api
+    description: Météo-France API source placeholder
+    bronze_subdir: bronze/meteo_france
+    default_extension: json
+
+  data_gouv:
+    enabled: false
+    type: api
+    description: data.gouv.fr source placeholder
+    bronze_subdir: bronze/data_gouv
+    default_extension: json

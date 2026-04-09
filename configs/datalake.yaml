@@ -1,0 +1,42 @@
+datalake:
+  architecture: medallion
+  catalog:
+    selected: atlas
+    alternatives:
+      - aws_glue
+      - gcp_dataplex
+  zones:
+    raw:
+      logical_layer: bronze
+      physical_path: ./data/bronze
+      retention_years: null
+      owner_role: data_engineer
+      reader_roles:
+        - data_engineer
+        - data_admin
+    curated:
+      logical_layer: silver
+      physical_path: ./data/silver
+      retention_years: 5
+      owner_role: data_engineer
+      reader_roles:
+        - data_reader
+        - data_engineer
+        - data_admin
+    consumption:
+      logical_layer: gold
+      physical_path: ./data/gold
+      retention_years: 2
+      owner_role: data_admin
+      reader_roles:
+        - data_reader
+        - data_engineer
+        - data_admin
+  alerts:
+    freshness_check: true
+    missing_file_check: true
+    volume_drift_check: true
+  governance:
+    privacy_by_design: true
+    personal_data_expected: false
+    default_data_classification: internal

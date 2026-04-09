@@ -1,0 +1,235 @@
+{
+  "glossary/energy_forecast_glossary.json": {
+    "glossary": "energy_forecast_glossary",
+    "terms": [
+      {
+        "name": "consumption",
+        "shortDescription": "Measured daily energy consumption",
+        "examples": [
+          "consumption_value",
+          "electricity_consumption",
+          "gas_consumption"
+        ]
+      },
+      {
+        "name": "region",
+        "shortDescription": "French region used as business geography axis",
+        "examples": [
+          "dim_region",
+          "region_name"
+        ]
+      },
+      {
+        "name": "energy",
+        "shortDescription": "Energy family tracked by the project",
+        "examples": [
+          "Electricity",
+          "Gas"
+        ]
+      },
+      {
+        "name": "weather_context",
+        "shortDescription": "Categorized weather context used in Gold",
+        "examples": [
+          "temperature_band",
+          "precipitation_band"
+        ]
+      },
+      {
+        "name": "heating_degree_days",
+        "shortDescription": "Derived indicator linking weather and energy demand",
+        "examples": [
+          "dju_heating"
+        ]
+      },
+      {
+        "name": "gold_service_dataset",
+        "shortDescription": "Wide Gold restitution dataset exposed to consumers",
+        "examples": [
+          "gold_daily_features"
+        ]
+      }
+    ]
+  },
+  "entities/core_entities.json": {
+    "entities": [
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "kaggle.france_energy_weather_daily",
+          "name": "Kaggle daily energy-weather dataset",
+          "description": "Primary source dataset"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "bronze.kaggle",
+          "name": "Bronze Kaggle dataset",
+          "description": "Raw ingested Kaggle files"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "silver.energy_weather_daily",
+          "name": "silver_energy_weather_daily",
+          "description": "Normalized Silver dataset"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.dim_date",
+          "name": "dim_date",
+          "description": "Date dimension"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.dim_region",
+          "name": "dim_region",
+          "description": "Region dimension with SCD2 fields"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.dim_energy",
+          "name": "dim_energy",
+          "description": "Energy dimension"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.dim_weather_context",
+          "name": "dim_weather_context",
+          "description": "Weather context dimension"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.fact_energy_consumption_daily",
+          "name": "fact_energy_consumption_daily",
+          "description": "Gold fact table"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "gold.gold_daily_features",
+          "name": "gold_daily_features",
+          "description": "Gold service dataset for API / analytics"
+        }
+      },
+      {
+        "typeName": "dataset",
+        "attributes": {
+          "qualifiedName": "api.features",
+          "name": "FastAPI /features endpoint",
+          "description": "Consumer-facing features endpoint"
+        }
+      }
+    ]
+  },
+  "entities/datalake_entities.json": {
+    "zones": [
+      {
+        "qualifiedName": "energy_forecast.raw",
+        "name": "Raw Zone",
+        "description": "Zone de dépôt brut correspondant à la couche Bronze du projet.",
+        "physicalPath": "data/bronze"
+      },
+      {
+        "qualifiedName": "energy_forecast.curated",
+        "name": "Curated Zone",
+        "description": "Zone fiabilisée correspondant à la couche Silver du projet.",
+        "physicalPath": "data/silver"
+      },
+      {
+        "qualifiedName": "energy_forecast.consumption",
+        "name": "Consumption Zone",
+        "description": "Zone orientée analyse et restitution correspondant à la couche Gold du projet.",
+        "physicalPath": "data/gold"
+      }
+    ]
+  },
+  "processes/lineage_processes.json": {
+    "processes": [
+      {
+        "name": "bronze_ingestion",
+        "inputs": [
+          "kaggle.france_energy_weather_daily"
+        ],
+        "outputs": [
+          "bronze.kaggle"
+        ],
+        "description": "Source ingestion into Bronze"
+      },
+      {
+        "name": "silver_transformation",
+        "inputs": [
+          "bronze.kaggle"
+        ],
+        "outputs": [
+          "silver.energy_weather_daily"
+        ],
+        "description": "Cleaning, typing, normalization, enrichment"
+      },
+      {
+        "name": "gold_dwh_load",
+        "inputs": [
+          "silver.energy_weather_daily"
+        ],
+        "outputs": [
+          "gold.dim_date",
+          "gold.dim_region",
+          "gold.dim_energy",
+          "gold.dim_weather_context",
+          "gold.fact_energy_consumption_daily",
+          "gold.gold_daily_features"
+        ],
+        "description": "Build dimensions, fact table and Gold restitution dataset"
+      },
+      {
+        "name": "api_exposure",
+        "inputs": [
+          "gold.gold_daily_features"
+        ],
+        "outputs": [
+          "api.features"
+        ],
+        "description": "API consumption layer"
+      }
+    ]
+  },
+  "processes/datalake_processes.json": {
+    "processes": [
+      {
+        "qualifiedName": "process.raw_to_curated",
+        "name": "Raw to Curated",
+        "inputs": [
+          "energy_forecast.raw"
+        ],
+        "outputs": [
+          "energy_forecast.curated"
+        ],
+        "description": "Transformation batch de la zone brute vers la zone fiabilisée."
+      },
+      {
+        "qualifiedName": "process.curated_to_consumption",
+        "name": "Curated to Consumption",
+        "inputs": [
+          "energy_forecast.curated"
+        ],
+        "outputs": [
+          "energy_forecast.consumption"
+        ],
+        "description": "Chargement des tables analytiques et des datasets de restitution."
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "processes": [
+    {
+      "qualifiedName": "process.raw_to_curated",
+      "name": "Raw to Curated",
+      "inputs": ["energy_forecast.raw"],
+      "outputs": ["energy_forecast.curated"],
+      "description": "Transformation batch de la zone brute vers la zone fiabilisée."
+    },
+    {
+      "qualifiedName": "process.curated_to_consumption",
+      "name": "Curated to Consumption",
+      "inputs": ["energy_forecast.curated"],
+      "outputs": ["energy_forecast.consumption"],
+      "description": "Chargement des tables analytiques et des datasets de restitution."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "energy-forecast-project"
+version = "0.1.0"
+description = "Socle technique Bloc 2 - Prévision consommation énergie et météo"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Ahmed Mohamedi" }
+]
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "pandas==2.3.1",
+  "PyYAML==6.0.2",
+  "pydantic==2.11.7",
+  "pydantic-settings==2.10.1",
+  "SQLAlchemy==2.0.43",
+  "httpx==0.28.1",
+  "python-dotenv==1.1.1"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

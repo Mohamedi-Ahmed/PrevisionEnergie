@@ -1,0 +1,49 @@
+{
+  "processes": [
+    {
+      "name": "bronze_ingestion",
+      "inputs": [
+        "kaggle.france_energy_weather_daily"
+      ],
+      "outputs": [
+        "bronze.kaggle"
+      ],
+      "description": "Source ingestion into Bronze"
+    },
+    {
+      "name": "silver_transformation",
+      "inputs": [
+        "bronze.kaggle"
+      ],
+      "outputs": [
+        "silver.energy_weather_daily"
+      ],
+      "description": "Cleaning, typing, normalization, enrichment"
+    },
+    {
+      "name": "gold_dwh_load",
+      "inputs": [
+        "silver.energy_weather_daily"
+      ],
+      "outputs": [
+        "gold.dim_date",
+        "gold.dim_region",
+        "gold.dim_energy",
+        "gold.dim_weather_context",
+        "gold.fact_energy_consumption_daily",
+        "gold.gold_daily_features"
+      ],
+      "description": "Build dimensions, fact table and Gold restitution dataset"
+    },
+    {
+      "name": "api_exposure",
+      "inputs": [
+        "gold.gold_daily_features"
+      ],
+      "outputs": [
+        "api.features"
+      ],
+      "description": "API consumption layer"
+    }
+  ]
+}

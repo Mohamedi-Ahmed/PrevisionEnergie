@@ -1,0 +1,59 @@
+{
+  "project": "medallion",
+  "catalog": "atlas",
+  "zones": [
+    {
+      "zone": "raw",
+      "logical_layer": "bronze",
+      "physical_path": "./data/bronze",
+      "retention_years": null,
+      "owner_role": "data_engineer",
+      "reader_roles": [
+        "data_engineer",
+        "data_admin"
+      ],
+      "datasets": [
+        "data/bronze/kaggle/demo_pipeline.csv",
+        "data/bronze/kaggle/enrich_demo.csv",
+        "data/bronze/kaggle/review_fix_demo.csv",
+        "data/bronze/kaggle/sample_ingested.csv",
+        "data/bronze/rte/enrich_demo.json"
+      ]
+    },
+    {
+      "zone": "curated",
+      "logical_layer": "silver",
+      "physical_path": "./data/silver",
+      "retention_years": 5,
+      "owner_role": "data_engineer",
+      "reader_roles": [
+        "data_reader",
+        "data_engineer",
+        "data_admin"
+      ],
+      "datasets": [
+        "data/silver/kaggle/quality_reports/quality_demo_pipeline.json",
+        "data/silver/kaggle/quality_reports/quality_enrich_demo.json",
+        "data/silver/kaggle/quality_reports/quality_review_fix_demo.json",
+        "data/silver/kaggle/quality_reports/quality_sample_ingested.json",
+        "data/silver/kaggle/silver_demo_pipeline.csv",
+        "data/silver/kaggle/silver_enrich_demo.csv",
+        "data/silver/kaggle/silver_review_fix_demo.csv",
+        "data/silver/kaggle/silver_sample_ingested.csv"
+      ]
+    },
+    {
+      "zone": "consumption",
+      "logical_layer": "gold",
+      "physical_path": "./data/gold",
+      "retention_years": 2,
+      "owner_role": "data_admin",
+      "reader_roles": [
+        "data_reader",
+        "data_engineer",
+        "data_admin"
+      ],
+      "datasets": []
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+enrichment:
+  kaggle:
+    enabled: true
+    sources:
+      - rte
+      - meteo_france
+      - data_gouv
+    join_keys:
+      - date
+      - region
+    overwrite_kaggle_values: false
+    fill_missing_from_api: true

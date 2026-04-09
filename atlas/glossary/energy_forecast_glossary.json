@@ -1,0 +1,52 @@
+{
+  "glossary": "energy_forecast_glossary",
+  "terms": [
+    {
+      "name": "consumption",
+      "shortDescription": "Measured daily energy consumption",
+      "examples": [
+        "consumption_value",
+        "electricity_consumption",
+        "gas_consumption"
+      ]
+    },
+    {
+      "name": "region",
+      "shortDescription": "French region used as business geography axis",
+      "examples": [
+        "dim_region",
+        "region_name"
+      ]
+    },
+    {
+      "name": "energy",
+      "shortDescription": "Energy family tracked by the project",
+      "examples": [
+        "Electricity",
+        "Gas"
+      ]
+    },
+    {
+      "name": "weather_context",
+      "shortDescription": "Categorized weather context used in Gold",
+      "examples": [
+        "temperature_band",
+        "precipitation_band"
+      ]
+    },
+    {
+      "name": "heating_degree_days",
+      "shortDescription": "Derived indicator linking weather and energy demand",
+      "examples": [
+        "dju_heating"
+      ]
+    },
+    {
+      "name": "gold_service_dataset",
+      "shortDescription": "Wide Gold restitution dataset exposed to consumers",
+      "examples": [
+        "gold_daily_features"
+      ]
+    }
+  ]
+}
