@@ -1,0 +1,38 @@
+{
+  "model": "RandomForestRegressor",
+  "n_estimators": 200,
+  "max_depth": 15,
+  "features": [
+    "temperature_mean",
+    "dju_heating",
+    "dju_cooling",
+    "precipitation_sum",
+    "wind_speed_10m_max",
+    "sunshine_duration",
+    "month",
+    "weekday",
+    "is_weekend",
+    "insee_region"
+  ],
+  "train_size": 43824,
+  "test_size": 5820,
+  "train_period": "2013-01-01 / 2022-12-31",
+  "test_period": "2023-01-01 / 2024-04-29",
+  "metrics": {
+    "r2": 0.9482,
+    "rmse": 21162.42,
+    "mae": 15782.04
+  },
+  "feature_importance": {
+    "insee_region": 0.7824,
+    "temperature_mean": 0.0922,
+    "dju_heating": 0.091,
+    "month": 0.0097,
+    "weekday": 0.0087,
+    "is_weekend": 0.0071,
+    "sunshine_duration": 0.0054,
+    "wind_speed_10m_max": 0.0021,
+    "precipitation_sum": 0.0012,
+    "dju_cooling": 0.0001
+  }
+}
