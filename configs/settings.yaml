@@ -1,5 +1,5 @@
 project:
-  name: energy-forecast-project
+  name: prevision-energie
   environment: dev
 
 storage:
@@ -7,10 +7,10 @@ storage:
   base_path: ./data
 
 database:
-  url: sqlite:///./energy_forecast.db
+  url: sqlite:///./prevision_energie.db
 
 api:
-  title: Energy Forecast API
+  title: PrevisionEnergie API
   version: 0.1.0
   prefix: /api/v1
   docs_url: /docs

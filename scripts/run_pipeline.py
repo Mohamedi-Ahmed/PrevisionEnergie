@@ -20,7 +20,7 @@ def table_count(db_path: Path, table_name: str) -> int:
 
 
 def main() -> None:
-    print("Preparing local demo environment...")
+    print("Lancement du pipeline complet...")
     run_step("scripts/init_db.py")
     run_step("scripts/run_transform.py", "--source", "kaggle")
     run_step("scripts/run_load.py", "--source", "kaggle")
@@ -28,8 +28,8 @@ def main() -> None:
     run_step("scripts/export_atlas_metadata.py")
     run_step("scripts/generate_datalake_manifest.py")
 
-    db_path = PROJECT_DIR / "energy_forecast.db"
-    print("=== Demo-ready summary ===")
+    db_path = PROJECT_DIR / "prevision_energie.db"
+    print("=== Pipeline summary ===")
     for table_name in [
         "silver_energy_weather_daily",
         "dim_date",

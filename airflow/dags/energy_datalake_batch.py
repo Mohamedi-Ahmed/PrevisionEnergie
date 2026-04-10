@@ -38,4 +38,7 @@ if DAG is not None:
         manifest = BashOperator(task_id="manifest", bash_command=command("scripts/generate_datalake_manifest.py"))
         atlas = BashOperator(task_id="atlas_export", bash_command=command("scripts/export_atlas_metadata.py"))
 
-        init_db >> transform >> load >> gold >> manifest >> atlas
+        monitoring = BashOperator(task_id="monitoring", bash_command=command("scripts/run_monitoring.py"))
+        backup = BashOperator(task_id="backup", bash_command=command("scripts/backup_db.py"))
+
+        init_db >> transform >> load >> gold >> manifest >> atlas >> monitoring >> backup

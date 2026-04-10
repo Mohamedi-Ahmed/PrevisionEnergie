@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "energy-forecast-project"
+name = "prevision-energie"
 version = "0.1.0"
 description = "Socle technique Bloc 2 - Prévision consommation énergie et météo"
 readme = "README.md"

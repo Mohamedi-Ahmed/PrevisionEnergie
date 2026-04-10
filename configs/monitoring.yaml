@@ -1,0 +1,55 @@
+# ============================================================
+# Monitoring & SLA configuration — PrevisionEnergie
+# ============================================================
+
+sla:
+  # Indicateurs de niveau de service
+  pipeline_max_duration_minutes: 30
+  data_freshness_max_hours: 48
+  api_response_time_ms: 500
+  api_uptime_target_percent: 99.0
+  gold_min_row_count: 100
+
+alerts:
+  # Seuils de déclenchement des alertes
+  freshness:
+    enabled: true
+    max_hours_since_last_load: 48
+    severity: WARNING
+  volume:
+    enabled: true
+    min_expected_rows: 50
+    severity: ERROR
+  database:
+    enabled: true
+    check_interval_minutes: 15
+    severity: CRITICAL
+  api_health:
+    enabled: true
+    check_interval_minutes: 5
+    severity: CRITICAL
+
+  # Canal de notification (extensible : email, slack, webhook)
+  notification:
+    channel: log
+    # email_to: ops@prevision-energie.fr  # production
+    # slack_webhook: https://hooks.slack.com/...  # production
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # cron : chaque nuit à 2h
+  strategy:
+    partial:
+      frequency: daily
+      targets:
+        - prevision_energie.db
+      retention_days: 7
+    full:
+      frequency: weekly
+      day: sunday
+      targets:
+        - prevision_energie.db
+        - data/
+        - configs/
+      retention_days: 30
+  destination: ./backups

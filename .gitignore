@@ -14,4 +14,4 @@ htmlcov/
 /data/gold/*
 !/data/**/.gitkeep
 
-energy_forecast.db
+prevision_energie.db

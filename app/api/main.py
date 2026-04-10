@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routers import auth, consumption, features, health, metadata
+from app.api.routers import auth, consumption, features, health, metadata, monitoring
 from app.core.config import get_settings
 
 
@@ -8,7 +8,7 @@ settings = get_settings()
 api_config = settings.load_yaml("settings.yaml").get("api", {})
 
 app = FastAPI(
-    title=api_config.get("title", "Energy Forecast API"),
+    title=api_config.get("title", "PrevisionEnergie API"),
     version=api_config.get("version", "0.1.0"),
     description=(
         "API Bloc 2 pour exposer des données énergie / météo nettoyées "
@@ -22,6 +22,7 @@ app = FastAPI(
         {"name": "consumption", "description": "Daily consumption access endpoints (C9)."},
         {"name": "features", "description": "Feature access endpoints for analytics and future ML (C10)."},
         {"name": "metadata", "description": "Reference metadata endpoints."},
+        {"name": "monitoring", "description": "Monitoring, health checks and SLA indicators."},
     ],
 )
 
@@ -30,3 +31,4 @@ app.include_router(auth.router)
 app.include_router(consumption.router)
 app.include_router(features.router)
 app.include_router(metadata.router)
+app.include_router(monitoring.router)

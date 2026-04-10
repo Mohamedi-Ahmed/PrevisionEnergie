@@ -14,7 +14,7 @@ Ce dépôt couvre :
 
 ```bash
 # Tout-en-un : initialise la base, transforme, charge, construit le Gold
-python scripts/run_demo_setup.py
+python scripts/run_pipeline.py
 
 # Lancer l'API
 python scripts/run_api.py

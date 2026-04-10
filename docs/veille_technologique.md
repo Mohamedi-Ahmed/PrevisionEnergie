@@ -1,99 +1,137 @@
-# Veille technologique et reglementaire -- PrevisionEnergie
+# Journal de veille technologique
 
-## Organisation de la veille
-
-| Element | Detail |
-|---------|--------|
-| **Frequence** | 1h minimum par semaine (vendredi matin) |
-| **Thematiques** | ML energetique, Delta Lake / Lakehouse, Reglementation donnees (RGPD, AI Act) |
-| **Outils** | Feedly (agregation RSS), LinkedIn (communautes Data), GitHub Releases, newsletters |
-| **Format de sortie** | Synthese mensuelle + alertes ponctuelles si impact projet |
+**Projet** : PrevisionEnergie
+**Responsable** : Ahmed Mohamedi
+**Récurrence** : 1 h / semaine (vendredi après-midi)
+**Outils d'agrégation** : Feedly (flux RSS), GitHub Trending, newsletters (Data Engineering Weekly, dbt blog)
 
 ---
 
-## Thematiques de veille
+## Semaine 1 — 10 janvier 2025
 
-### 1. Machine Learning applique a l'energie
-- Modeles de prevision de consommation (LSTM, Prophet, XGBoost)
-- Feature engineering specifique energie (DJU, lags, rolling averages)
-- Benchmarks de precision sur donnees RTE/eco2mix
+**Thème** : Architectures Data Lake modernes
+**Sources consultées** :
+- Databricks — "Medallion Architecture" (blog officiel)
+- Article Medium — "Bronze, Silver, Gold layers explained"
+- Documentation Delta Lake 3.x (changelog)
 
-### 2. Delta Lake et architecture Lakehouse
-- Evolution du format Delta Lake (versions, fonctionnalites)
-- Comparaison Delta Lake vs Apache Iceberg vs Apache Hudi
-- Patterns MERGE / UPSERT pour idempotence
-- OPTIMIZE et ZORDER : cas d'usage et benchmarks
+**Synthèse** :
+L'architecture Medallion s'impose comme standard de facto pour structurer un Data Lake en couches. Le passage Bronze → Silver → Gold permet de séparer la donnée brute de la donnée fiabilisée. Delta Lake 3.x apporte l'Uniform format (Iceberg + Delta), mais pour un POC local SQLite reste suffisant avec la même logique en 3 couches.
 
-### 3. Reglementation donnees
-- RGPD : evolutions, sanctions, bonnes pratiques
-- AI Act europeen : impact sur les projets data/ML
-- Donnees energetiques : reglementations sectorielles (RTE, CRE)
+**Action** : Adoption de l'architecture Medallion pour PrevisionEnergie.
 
 ---
 
-## Syntheses de veille realisees
+## Semaine 2 — 17 janvier 2025
 
-### Janvier 2026 -- Delta Lake 4.0 et impact sur l'architecture
+**Thème** : Comparaison des catalogues de métadonnées
+**Sources consultées** :
+- Apache Atlas — documentation officielle 2.3
+- AWS Glue Data Catalog — page produit et pricing
+- Google Dataplex — documentation et tutoriels
 
-**Source** : Blog Databricks, GitHub delta-io/delta, Documentation officielle
+**Synthèse** :
+Atlas reste le seul catalogue open-source mature avec lignage natif. Glue est très intégré à l'écosystème AWS mais vendor-locked. Dataplex couvre la gouvernance mais manque de maturité sur le glossaire. Pour un projet académique sans cloud, Atlas est le choix le plus défendable : on prépare un bundle JSON importable.
 
-**Synthese** :
-Delta Lake 4.0 introduit le support natif des liquid clusters (remplacement de ZORDER), l'amelioration des performances de MERGE (jusqu'a 3x plus rapide sur les upserts), et la compatibilite UniForm v2 pour la lecture Iceberg/Hudi.
-
-**Impact projet** : La migration vers Delta Lake (actuellement documentee dans `sql/delta/create_gold_tables_delta.sql`) beneficiera directement de ces optimisations. Le MERGE idempotent du gold_loader.py est deja conforme au pattern recommande.
-
-**Action** : Aucune modification immediate. A integrer lors de la phase de deploiement cloud.
-
----
-
-### Fevrier 2026 -- RGPD et donnees energetiques agregees
-
-**Source** : CNIL (cnil.fr), Documentation RTE Open Data
-
-**Synthese** :
-La CNIL confirme que les donnees de consommation energetique agregees au niveau regional ne constituent pas des donnees personnelles au sens du RGPD, a condition que le grain d'agregation soit suffisant (pas de maille infra-communale pour les zones a faible densite). Les donnees eco2mix de RTE sont classees "donnees ouvertes" et ne necessitent pas de base legale specifique.
-
-**Impact projet** : Confirmation que l'approche "privacy by design" du projet est correcte. Les donnees collectees (consommation regionale quotidienne) ne sont pas des donnees personnelles. Le registre RGPD a ete mis a jour en consequence.
-
-**Action** : Documenter cette analyse dans le registre RGPD (fait).
+**Action** : Choix d'Atlas, préparation d'un bundle JSON (glossary + entities + lineage).
 
 ---
 
-### Mars 2026 -- Apache Atlas vs alternatives cloud
+## Semaine 3 — 24 janvier 2025
 
-**Source** : Documentation Atlas 2.3, AWS Glue documentation, Google Dataplex GA release notes
+**Thème** : Historisation dimensionnelle (SCD)
+**Sources consultées** :
+- Kimball Group — "Slowly Changing Dimensions" (article de référence)
+- dbt docs — SCD Type 2 avec snapshots
+- Stack Overflow — "SCD2 with SQLite limitations"
 
-**Synthese** :
-Apache Atlas reste la reference open-source pour le lignage de donnees. Google Dataplex a atteint la GA (general availability) avec des fonctionnalites de decouverte automatique. AWS Glue Data Catalog reste limite en lignage (uniquement les jobs Glue).
+**Synthèse** :
+Le SCD Type 2 est le mécanisme standard pour historiser les dimensions qui changent. Il nécessite valid_from/valid_to, is_current et un hash des attributs suivis. SQLite ne supporte pas les MERGE natifs, mais un pattern DELETE + INSERT ou UPDATE + INSERT fonctionne. dbt simplifie cela avec les snapshots, mais en pur Python on peut reproduire la logique avec un hash MD5.
 
-**Impact projet** : Le choix d'Atlas est confirme pour un contexte multi-cloud / on-premise. Un tableau comparatif Atlas vs Glue vs Dataplex a ete produit (voir `docs/comparaison_catalogues.md`).
-
-**Action** : Tableau comparatif integre au rapport E7.
-
----
-
-### Avril 2026 -- AI Act et projets data en entreprise
-
-**Source** : EUR-Lex, Blog CNIL, Documentation Commission Europeenne
-
-**Synthese** :
-L'AI Act europeen (entree en vigueur progressive 2024-2026) impose des exigences de transparence et de gouvernance pour les systemes d'IA. Les systemes de prevision energetique sont classes "risque limite" (pas "haut risque"), mais les exigences de documentation et de tracabilite s'appliquent.
-
-**Impact projet** : Le pipeline PrevisionEnergie integre deja la tracabilite (quality reports, lignage Atlas, versionnement Git). La documentation des choix d'architecture et des donnees utilisees est conforme aux attendus de l'AI Act pour les systemes a risque limite.
-
-**Action** : Mentionner l'AI Act dans la section gouvernance du rapport E7.
+**Action** : Implémentation du SCD2 sur dim_region avec attr_hash_md5.
 
 ---
 
-## Sources de veille regulieres
+## Semaine 4 — 31 janvier 2025
 
-| Source | Type | Frequence de consultation |
-|--------|------|--------------------------|
-| Databricks Blog | Blog technique | Hebdomadaire |
-| Delta Lake GitHub Releases | Changelog | Bi-mensuelle |
-| CNIL Actualites | Reglementation | Bi-mensuelle |
-| RTE Open Data changelog | Donnees metier | Mensuelle |
-| Data Engineering Weekly (newsletter) | Agregation | Hebdomadaire |
-| LinkedIn Data Engineering France | Communaute | Quotidienne |
-| Towards Data Science (Medium) | Articles | Hebdomadaire |
-| Apache Atlas JIRA | Bugs/features | Mensuelle |
+**Thème** : Frameworks API pour Data Engineering
+**Sources consultées** :
+- FastAPI — documentation officielle (tiangolo)
+- Comparatif FastAPI vs Flask vs Django REST (Real Python)
+- OpenAPI 3.1 spec
+
+**Synthèse** :
+FastAPI offre le meilleur rapport productivité / documentation automatique pour un projet data. La génération automatique de /docs (Swagger UI) et /redoc, le typage Pydantic et l'injection de dépendances en font le choix naturel. Flask reste plus simple mais sans validation intégrée. Django REST est surdimensionné pour une API de lecture.
+
+**Action** : Adoption de FastAPI avec Bearer token pour l'API PrevisionEnergie.
+
+---
+
+## Semaine 5 — 7 février 2025
+
+**Thème** : Orchestration batch et Airflow
+**Sources consultées** :
+- Apache Airflow — documentation 2.8
+- Article — "Airflow vs Prefect vs Dagster" (comparatif 2024)
+- Astronomer blog — bonnes pratiques DAG
+
+**Synthèse** :
+Airflow reste le standard d'orchestration batch en entreprise malgré la montée de Prefect et Dagster. Le modèle DAG est adapté à notre pipeline séquentiel (init → transform → load → gold → manifest → atlas). Pour un POC local, un DAG déclaratif suffit sans déployer le scheduler complet.
+
+**Action** : Création du DAG energy_datalake_batch.py avec 6 tâches chaînées.
+
+---
+
+## Semaine 6 — 14 février 2025
+
+**Thème** : Qualité des données et observabilité
+**Sources consultées** :
+- Great Expectations — documentation et gallery
+- Article — "Data quality dimensions" (DAMA)
+- Monte Carlo — "Data Observability 101"
+
+**Synthèse** :
+La qualité des données se mesure sur 6 dimensions : complétude, exactitude, cohérence, fraîcheur, unicité, validité. Great Expectations est puissant mais lourd pour un POC. Une approche légère avec des quality reports JSON (taux de nulls, outliers IQR, volumétrie) couvre les besoins de la V1 sans dépendance lourde.
+
+**Action** : Implémentation des quality reports JSON dans le pipeline Silver.
+
+---
+
+## Semaine 7 — 21 février 2025
+
+**Thème** : RGPD et éco-responsabilité dans les projets data
+**Sources consultées** :
+- CNIL — guide RGPD pour les développeurs
+- RGESN — Référentiel Général d'Écoconception (DINUM)
+- INR — bonnes pratiques numérique responsable
+
+**Synthèse** :
+Même sans données personnelles, les principes RGPD de minimisation et de finalité s'appliquent au design. Le RGESN propose 6 axes d'écoconception applicables aux pipelines data : sobriété du stockage, optimisation des traitements, choix d'infrastructure proportionnée, réduction des transferts, outillage léger, sélection de prestataires responsables.
+
+**Action** : Intégration des 6 principes RGESN dans E2 et E7.
+
+---
+
+## Semaine 8 — 28 février 2025
+
+**Thème** : Monitoring et alerting pour pipelines data
+**Sources consultées** :
+- Prometheus + Grafana — documentation officielle
+- Article — "Monitoring data pipelines" (Datadog blog)
+- Python logging — module standard et bonnes pratiques
+
+**Synthèse** :
+En production, Prometheus collecte les métriques et Grafana les affiche avec des seuils d'alerte. Pour un POC local, le module logging Python avec catégorisation (INFO/WARNING/ERROR/CRITICAL) et des health checks périodiques suffisent. L'essentiel est de montrer la logique : vérifier la fraîcheur, la volumétrie, l'état de la base, et déclencher une alerte si un seuil est franchi.
+
+**Action** : Création du module monitoring.py avec alertes catégorisées et health checks.
+
+---
+
+## Synthèse communiquée aux parties prenantes
+
+| Date | Destinataire | Objet | Format |
+|------|-------------|-------|--------|
+| 31/01/2025 | DSI | Choix d'architecture Medallion + Atlas | Note technique (mail) |
+| 14/02/2025 | Direction | Avancement pipeline et qualité données | Compte-rendu sprint review |
+| 28/02/2025 | Équipe | Stack retenue (FastAPI, Airflow, RBAC) | Présentation interne |
+| 07/03/2025 | DPO | Conformité RGPD et éco-responsabilité | Note de synthèse |

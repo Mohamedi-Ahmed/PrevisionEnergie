@@ -13,7 +13,7 @@ CONFIG_DIR = BASE_DIR / "configs"
 
 class Settings(BaseSettings):
     app_env: str = Field(default="dev", alias="APP_ENV")
-    app_name: str = Field(default="energy-forecast-api", alias="APP_NAME")
+    app_name: str = Field(default="prevision-energie-api", alias="APP_NAME")
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_log_level: str = Field(default="INFO", alias="APP_LOG_LEVEL")
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     storage_backend: str = Field(default="local", alias="STORAGE_BACKEND")
     local_data_dir: str = Field(default="./data", alias="LOCAL_DATA_DIR")
 
-    database_url: str = Field(default="sqlite:///./energy_forecast.db", alias="DATABASE_URL")
+    database_url: str = Field(default="sqlite:///./prevision_energie.db", alias="DATABASE_URL")
 
     rte_api_base_url: str | None = Field(default=None, alias="RTE_API_BASE_URL")
     rte_api_key: str | None = Field(default=None, alias="RTE_API_KEY")

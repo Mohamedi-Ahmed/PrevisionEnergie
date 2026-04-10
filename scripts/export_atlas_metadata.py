@@ -10,7 +10,7 @@ OUT_FILE = BASE_DIR / "atlas" / "atlas_bundle.json"
 def main() -> None:
     bundle = {}
     relative_paths = [
-        "glossary/energy_forecast_glossary.json",
+        "glossary/prevision_energie_glossary.json",
         "entities/core_entities.json",
         "entities/datalake_entities.json",
         "processes/lineage_processes.json",

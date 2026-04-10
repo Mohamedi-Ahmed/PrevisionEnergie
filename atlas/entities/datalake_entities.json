@@ -1,19 +1,19 @@
 {
   "zones": [
     {
-      "qualifiedName": "energy_forecast.raw",
+      "qualifiedName": "prevision_energie.raw",
       "name": "Raw Zone",
       "description": "Zone de dépôt brut correspondant à la couche Bronze du projet.",
       "physicalPath": "data/bronze"
     },
     {
-      "qualifiedName": "energy_forecast.curated",
+      "qualifiedName": "prevision_energie.curated",
       "name": "Curated Zone",
       "description": "Zone fiabilisée correspondant à la couche Silver du projet.",
       "physicalPath": "data/silver"
     },
     {
-      "qualifiedName": "energy_forecast.consumption",
+      "qualifiedName": "prevision_energie.consumption",
       "name": "Consumption Zone",
       "description": "Zone orientée analyse et restitution correspondant à la couche Gold du projet.",
       "physicalPath": "data/gold"
