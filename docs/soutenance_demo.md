@@ -66,14 +66,6 @@ GET /api/v1/features?start_date=2013-01-01&end_date=2013-01-03&region=Auvergne-R
 - `app/governance/rbac.py`
 - `app/governance/lifecycle.py`
 
-## Fichiers a ne pas mettre au centre du walkthrough
-
-- `scripts/build_soutenance_pptx.py`
-- `scripts/generate_final_livrables_docx.py`
-- `scripts/generate_final_livrables_pdf.py`
-
-Ces scripts servent a generer les supports. Ils peuvent etre cites en fin de demo, mais ils ne doivent pas porter la preuve principale du niveau data engineer.
-
 ## Fallbacks plus surs
 
 - Si Swagger pose probleme :
