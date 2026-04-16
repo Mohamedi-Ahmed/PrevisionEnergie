@@ -1,70 +1,23 @@
-# PrevisionEnergie - Pipeline de donnees
+# PrevisionEnergie
 
-## Le projet
+Pipeline data sur la consommation d'électricité et de gaz par région en France, avec prévisions météo-énergie.
 
-Projet de pipeline de donnees autour de la consommation energetique regionale en France.
+Sources : Kaggle (historique journalier), RTE, Open-Meteo. Stockage SQLite en local, architecture Bronze / Silver / Gold, API FastAPI, baseline ML + Random Forest, orchestration Airflow.
 
-Le projet contient :
-- ingestion multi-sources ;
-- pipeline Bronze -> Silver ;
-- chargement SQL et couche Gold ;
-- API FastAPI de consultation ;
-- baseline ML legere avec metriques sur `gold_daily_features` ;
-- scripts de gouvernance et de datalake utilises pendant la soutenance.
-
-## Lancement rapide
+## Démarrer
 
 ```bash
 python scripts/run_soutenance_demo.py
 python scripts/run_api.py
 ```
 
-API Swagger :
-- `http://127.0.0.1:8000/docs`
+Puis Swagger sur http://127.0.0.1:8000/docs.
 
-Parcours soutenance :
+Le premier script initialise SQLite, charge le CSV Kaggle de démo, enrichit via une API mock, et reconstruit Silver + Gold + le bundle Atlas. Le second lance l'API.
 
-```bash
-python scripts/run_soutenance_demo.py
-python scripts/run_api.py
-python scripts/run_governance_demo.py
-```
+## Pipeline étape par étape
 
-Guide pas a pas :
-- `docs/soutenance_demo.md`
-
-## Variante E4
-
-```powershell
-python scripts/run_pipeline.py `
-  --kaggle-source-file data/bronze/kaggle/demo_pipeline.csv `
-  --api-source rte `
-  --api-absolute-url https://example.test/rte `
-  --api-params "{}"
-```
-
-Commande de demo soutenance :
-
-```bash
-python scripts/run_soutenance_demo.py
-```
-
-## Variante Kaggle complet + baseline ML
-
-```bash
-python scripts/run_real_kaggle_pipeline.py
-python scripts/run_ml_baseline.py
-```
-
-Artefacts produits :
-- `data/gold/exports/ml_metrics.json`
-- `data/gold/exports/ml_predictions.csv`
-
-Exemple de resultat sur un run local du dataset Kaggle journalier :
-- electricite : `R2 = 0.9882` pour la regression lineaire contre `0.9748` pour la baseline naive `lag_1`
-- gaz : `R2 = 0.9655` pour la regression lineaire contre `0.9526` pour la baseline naive `lag_1`
-
-## Etapes principales
+Si tu veux rejouer chaque maillon à la main :
 
 ```bash
 python scripts/init_db.py
@@ -74,62 +27,52 @@ python scripts/run_gold.py
 python scripts/run_api.py
 ```
 
+## Dataset Kaggle complet + ML
+
+```bash
+python scripts/run_real_kaggle_pipeline.py
+python scripts/run_ml_baseline.py
+python scripts/run_forecast.py
+```
+
+Les métriques et prédictions sortent dans `data/gold/exports/` (`ml_metrics.json`, `ml_predictions.csv`) et `data/ml/` pour le forecast Random Forest.
+
+## Airflow
+
+```bash
+docker compose -f airflow/docker-compose.yml up --build
+```
+
+UI sur http://127.0.0.1:8080 (`admin` / `admin`). Le DAG `energy_datalake_batch` enchaîne init_db → transform → load → gold → manifest → atlas_export → monitoring → backup.
+
+## Gouvernance & monitoring
+
+```bash
+python scripts/run_governance_demo.py
+python scripts/run_monitoring.py
+```
+
+RBAC par zone (Bronze / Silver / Gold), SCD2 sur `dim_region`, politique de rétention, health checks (fraîcheur, volume, schéma) avec alertes JSONL.
+
 ## Tests
 
 ```bash
 python -m pytest tests/ -v
 ```
 
-## Documentation utile
-
-- Guide soutenance : `docs/soutenance_demo.md`
-- Guide E4 : `docs/e4_guide.md`
-- Baseline ML : `docs/ml_baseline.md`
-- Airflow local : `docs/airflow_local.md`
-- Manifest datalake : `docs/datalake_manifest.json`
-
-## Coeur du walkthrough code
-
-- Ingestion : `app/ingestion/`
-- Bronze -> Silver : `app/processing/pipeline.py`
-- Gold / chargement SQL : `app/db/loaders/gold_loader.py` et `sql/`
-- API FastAPI : `app/api/`
-- Gouvernance locale : `app/governance/`
-
-## Airflow local
-
-Section optionnelle pour la soutenance.
-
-```bash
-docker compose -f airflow/docker-compose.yml up --build
-```
-
-- UI : `http://127.0.0.1:8080`
-- Login : `admin`
-- Mot de passe : `admin`
-- DAG : `energy_datalake_batch`
-
-## Structure
+## Arborescence
 
 ```text
-app/
-|-- api/
-|-- core/
-|-- db/
-|-- etl/
-|-- governance/
-|-- ingestion/
-|-- processing/
-|-- storage/
-`-- utils/
-sql/
-configs/
-atlas/
-airflow/
-tests/
-docs/
+app/          # ingestion, processing, db, api, governance, ml
+sql/          # DDL, requêtes, vues, delta
+airflow/      # Dockerfile + DAG
+configs/      # YAML (datalake, monitoring)
+atlas/        # bundle catalogue de données
+scripts/      # CLI (ingestion, ETL, démo, génération livrables)
+tests/        # unit + integration
+docs/         # guides par bloc, référentiels, manifeste
 ```
 
 ## Stack
 
-Python 3.11, FastAPI, Pandas, SQLite, Pydantic, pytest, Airflow
+Python 3.11 · FastAPI · Pandas · Pydantic · SQLAlchemy · SQLite · pytest · Airflow · scikit-learn · Docker
