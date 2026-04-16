@@ -76,3 +76,7 @@ docs/         # guides par bloc, référentiels, manifeste
 ## Stack
 
 Python 3.11 · FastAPI · Pandas · Pydantic · SQLAlchemy · SQLite · pytest · Airflow · scikit-learn · Docker
+
+## Auteur
+
+Ahmed Mohamedi — [mohamedi.ahmed93@gmail.com](mailto:mohamedi.ahmed93@gmail.com)
