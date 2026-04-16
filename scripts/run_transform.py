@@ -13,6 +13,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Bronze to Silver transformation.")
     parser.add_argument("--source", required=True, choices=["kaggle", "rte", "meteo_france", "data_gouv"])
     parser.add_argument(
+        "--bronze-path",
+        action="append",
+        dest="bronze_paths",
+        help="Optional bronze relative path to transform. Repeat the flag to target multiple files.",
+    )
+    parser.add_argument(
         "--enrich-from-api",
         action="store_true",
         help="When source=kaggle, enrich the Kaggle dataset with available API bronze datasets.",
@@ -25,7 +31,7 @@ def main() -> None:
     args = parse_args()
     setup_logging()
     pipeline = SilverPipeline(source_name=args.source, enrich_from_api=args.enrich_from_api)
-    results = pipeline.run()
+    results = pipeline.run(bronze_relative_paths=args.bronze_paths)
     print(results)
 
 

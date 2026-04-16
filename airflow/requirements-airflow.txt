@@ -1,0 +1,6 @@
+pandas
+PyYAML
+httpx
+python-dotenv
+pydantic
+pydantic-settings

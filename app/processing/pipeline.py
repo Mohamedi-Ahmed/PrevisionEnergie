@@ -19,7 +19,7 @@ from app.processing.normalizers import apply_column_aliases, normalize_region_va
 from app.processing.outliers import clip_outliers_iqr
 from app.processing.quality import QualityReport, compute_missing_counts
 from app.processing.schemas import get_schema_profile
-from app.processing.validators import validate_not_empty
+from app.processing.validators import validate_not_empty, validate_required_columns
 from app.storage.base import StorageBackend
 
 
@@ -43,12 +43,14 @@ class BronzeToSilverProcessor:
 
         df = standardize_column_names(df_raw)
         df = apply_column_aliases(df, self.schema_profile.column_aliases)
+        validate_required_columns(df, self.schema_profile.required_columns)
         df = strip_string_values(df)
         df = drop_empty_rows(df)
         rows_after_drop_empty = len(df)
 
         df = cast_date_column(df, self.schema_profile.date_column)
         df = cast_numeric_columns(df, self.schema_profile.numeric_columns)
+        df = self._derive_temperature_mean(df)
         df = normalize_region_values(df, column_name="region")
 
         if self.source_name == "kaggle" and self.enrich_from_api:
@@ -106,6 +108,22 @@ class BronzeToSilverProcessor:
 
         self._log_quality(quality_report)
         return silver_relative_path, quality_relative_path, quality_report
+
+    @staticmethod
+    def _derive_temperature_mean(df: pd.DataFrame) -> pd.DataFrame:
+        enriched = df.copy()
+        if "temperature_mean" not in enriched.columns:
+            enriched["temperature_mean"] = None
+        if "temperature_min" not in enriched.columns or "temperature_max" not in enriched.columns:
+            return enriched
+
+        missing_mean = enriched["temperature_mean"].isna()
+        has_min_max = enriched["temperature_min"].notna() & enriched["temperature_max"].notna()
+        enriched.loc[missing_mean & has_min_max, "temperature_mean"] = (
+            enriched.loc[missing_mean & has_min_max, "temperature_min"]
+            + enriched.loc[missing_mean & has_min_max, "temperature_max"]
+        ) / 2
+        return enriched
 
     def _read_bronze_file(self, bronze_relative_path: str) -> pd.DataFrame:
         content = self.storage_backend.read_bytes(bronze_relative_path)

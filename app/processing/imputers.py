@@ -20,7 +20,10 @@ def simple_impute(df: pd.DataFrame, numeric_columns: list[str], categorical_colu
         missing_before = int(imputed[column].isna().sum())
         if missing_before == 0:
             continue
-        median_value = imputed[column].median()
+        non_null_values = imputed[column].dropna()
+        if non_null_values.empty:
+            continue
+        median_value = non_null_values.median()
         imputed[column] = imputed[column].fillna(median_value)
         report.total_imputed_values += missing_before
         report.imputed_by_column[column] = missing_before

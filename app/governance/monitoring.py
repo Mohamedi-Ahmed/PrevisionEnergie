@@ -1,27 +1,18 @@
-"""
-Monitoring et alerting pour le pipeline PrevisionEnergie.
-
-Ce module implémente :
-- La journalisation catégorisée (INFO, WARNING, ERROR, CRITICAL)
-- Les health checks (base, fraîcheur, volumétrie)
-- La génération d'alertes lors de ruptures de service
-- Le suivi des indicateurs SLA
-
-Compétences couvertes : C16 (alertes, journalisation) et C20 (monitorage, alertes sur rupture).
-"""
+"""Local monitoring helpers used by the demo and governance scripts."""
 
 from __future__ import annotations
 
 import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from app.core.config import BASE_DIR, get_settings
+from app.core.config import BASE_DIR
+from app.db.connection import get_sqlite_database_path
 
 logger = logging.getLogger("prevision_energie.monitoring")
 
@@ -29,14 +20,10 @@ MONITORING_CONFIG_PATH = BASE_DIR / "configs" / "monitoring.yaml"
 ALERT_LOG_PATH = BASE_DIR / "data" / "monitoring" / "alerts.jsonl"
 
 
-# ──────────────────────────────────────────────
-# Configuration
-# ──────────────────────────────────────────────
-
 def _load_monitoring_config() -> dict[str, Any]:
     if MONITORING_CONFIG_PATH.exists():
-        with MONITORING_CONFIG_PATH.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+        with MONITORING_CONFIG_PATH.open("r", encoding="utf-8") as handle:
+            return yaml.safe_load(handle) or {}
     return {}
 
 
@@ -48,15 +35,11 @@ def get_alert_config() -> dict[str, Any]:
     return _load_monitoring_config().get("alerts", {})
 
 
-# ──────────────────────────────────────────────
-# Journalisation catégorisée des alertes
-# ──────────────────────────────────────────────
-
 def _persist_alert(alert: dict[str, Any]) -> None:
-    """Persiste une alerte dans le fichier JSONL pour traçabilité."""
+    """Append alerts to a JSONL file so the demo keeps a simple trace."""
     ALERT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with ALERT_LOG_PATH.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(alert, ensure_ascii=False, default=str) + "\n")
+    with ALERT_LOG_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(alert, ensure_ascii=False, default=str) + "\n")
 
 
 def emit_alert(
@@ -65,12 +48,7 @@ def emit_alert(
     message: str,
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """
-    Émet une alerte catégorisée et la journalise.
-
-    Categories : FRESHNESS, VOLUME, DATABASE, API_HEALTH, PIPELINE, BACKUP
-    Severities : INFO, WARNING, ERROR, CRITICAL
-    """
+    """Create, log, and persist one monitoring alert."""
     alert = {
         "timestamp": datetime.utcnow().isoformat(),
         "category": category,
@@ -80,23 +58,16 @@ def emit_alert(
     }
 
     log_level = getattr(logging, severity, logging.WARNING)
-    logger.log(log_level, "[%s] %s — %s", severity, category, message)
+    logger.log(log_level, "[%s] %s - %s", severity, category, message)
 
     _persist_alert(alert)
     return alert
 
 
-# ──────────────────────────────────────────────
-# Health checks
-# ──────────────────────────────────────────────
-
 def check_database_health(db_path: Path | None = None) -> dict[str, Any]:
-    """
-    Vérifie que la base SQLite est accessible et non corrompue.
-    Génère une alerte CRITICAL en cas de rupture de service.
-    """
+    """Check that the SQLite database exists and answers a simple query."""
     if db_path is None:
-        db_path = BASE_DIR / "prevision_energie.db"
+        db_path = get_sqlite_database_path()
 
     result = {"check": "database", "status": "ok", "path": str(db_path)}
 
@@ -104,7 +75,7 @@ def check_database_health(db_path: Path | None = None) -> dict[str, Any]:
         alert = emit_alert(
             category="DATABASE",
             severity="CRITICAL",
-            message=f"Base de données introuvable : {db_path}",
+            message=f"Database file not found: {db_path}",
             details={"path": str(db_path)},
         )
         result["status"] = "critical"
@@ -112,14 +83,14 @@ def check_database_health(db_path: Path | None = None) -> dict[str, Any]:
         return result
 
     try:
-        conn = sqlite3.connect(db_path)
-        conn.execute("SELECT 1")
-        conn.close()
+        connection = sqlite3.connect(db_path)
+        connection.execute("SELECT 1")
+        connection.close()
     except Exception as exc:
         alert = emit_alert(
             category="DATABASE",
             severity="CRITICAL",
-            message=f"Base de données inaccessible : {exc}",
+            message=f"Database check failed: {exc}",
             details={"path": str(db_path), "error": str(exc)},
         )
         result["status"] = "critical"
@@ -129,19 +100,16 @@ def check_database_health(db_path: Path | None = None) -> dict[str, Any]:
     emit_alert(
         category="DATABASE",
         severity="INFO",
-        message="Base de données accessible",
+        message="Database reachable",
         details={"path": str(db_path)},
     )
     return result
 
 
 def check_data_freshness(db_path: Path | None = None) -> dict[str, Any]:
-    """
-    Vérifie la fraîcheur des données Silver (dernier inserted_at).
-    Génère une alerte WARNING si les données dépassent le seuil SLA.
-    """
+    """Check the latest Silver timestamp against the freshness threshold."""
     if db_path is None:
-        db_path = BASE_DIR / "prevision_energie.db"
+        db_path = get_sqlite_database_path()
 
     sla = get_sla_config()
     max_hours = sla.get("data_freshness_max_hours", 48)
@@ -154,12 +122,12 @@ def check_data_freshness(db_path: Path | None = None) -> dict[str, Any]:
         return result
 
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.execute(
+        connection = sqlite3.connect(db_path)
+        cursor = connection.execute(
             "SELECT MAX(inserted_at) FROM silver_energy_weather_daily"
         )
         row = cursor.fetchone()
-        conn.close()
+        connection.close()
     except Exception:
         result["status"] = "skipped"
         result["reason"] = "table not found or query failed"
@@ -169,7 +137,7 @@ def check_data_freshness(db_path: Path | None = None) -> dict[str, Any]:
         alert = emit_alert(
             category="FRESHNESS",
             severity="WARNING",
-            message="Aucune donnée Silver trouvée",
+            message="No Silver data found",
         )
         result["status"] = "warning"
         result["alert"] = alert
@@ -184,7 +152,7 @@ def check_data_freshness(db_path: Path | None = None) -> dict[str, Any]:
         alert = emit_alert(
             category="FRESHNESS",
             severity="WARNING",
-            message=f"Données Silver périmées ({age_hours:.0f}h > seuil {max_hours}h)",
+            message=f"Silver data too old ({age_hours:.0f}h > {max_hours}h)",
             details={"last_load": last_load.isoformat(), "age_hours": age_hours},
         )
         result["status"] = "warning"
@@ -193,22 +161,26 @@ def check_data_freshness(db_path: Path | None = None) -> dict[str, Any]:
         emit_alert(
             category="FRESHNESS",
             severity="INFO",
-            message=f"Fraîcheur OK ({age_hours:.0f}h)",
+            message=f"Freshness OK ({age_hours:.0f}h)",
         )
 
     return result
 
 
-def check_data_volume(db_path: Path | None = None) -> dict[str, Any]:
-    """
-    Vérifie la volumétrie Gold (nombre de lignes dans fact_energy_consumption_daily).
-    Génère une alerte ERROR si en dessous du seuil SLA.
-    """
+def check_data_volume(
+    db_path: Path | None = None,
+    min_rows_override: int | None = None,
+) -> dict[str, Any]:
+    """Check that the Gold fact table has enough rows for the current context."""
     if db_path is None:
-        db_path = BASE_DIR / "prevision_energie.db"
+        db_path = get_sqlite_database_path()
 
     sla = get_sla_config()
-    min_rows = sla.get("gold_min_row_count", 100)
+    min_rows = (
+        min_rows_override
+        if min_rows_override is not None
+        else sla.get("gold_min_row_count", 100)
+    )
 
     result = {"check": "volume", "status": "ok", "min_rows": min_rows}
 
@@ -217,12 +189,10 @@ def check_data_volume(db_path: Path | None = None) -> dict[str, Any]:
         return result
 
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.execute(
-            "SELECT COUNT(*) FROM fact_energy_consumption_daily"
-        )
+        connection = sqlite3.connect(db_path)
+        cursor = connection.execute("SELECT COUNT(*) FROM fact_energy_consumption_daily")
         count = cursor.fetchone()[0]
-        conn.close()
+        connection.close()
     except Exception:
         result["status"] = "skipped"
         result["reason"] = "table not found"
@@ -233,7 +203,7 @@ def check_data_volume(db_path: Path | None = None) -> dict[str, Any]:
         alert = emit_alert(
             category="VOLUME",
             severity="ERROR",
-            message=f"Volumétrie Gold insuffisante ({count} < {min_rows})",
+            message=f"Gold volume below threshold ({count} < {min_rows})",
             details={"row_count": count, "threshold": min_rows},
         )
         result["status"] = "error"
@@ -242,25 +212,58 @@ def check_data_volume(db_path: Path | None = None) -> dict[str, Any]:
         emit_alert(
             category="VOLUME",
             severity="INFO",
-            message=f"Volumétrie Gold OK ({count} lignes)",
+            message=f"Gold volume OK ({count} rows)",
         )
 
     return result
 
 
-# ──────────────────────────────────────────────
-# Rapport de monitoring complet
-# ──────────────────────────────────────────────
+def check_metadata_assets() -> dict[str, Any]:
+    """Check that the local Atlas bundle and manifest were generated."""
+    atlas_bundle = BASE_DIR / "atlas" / "atlas_bundle.json"
+    manifest = BASE_DIR / "docs" / "datalake_manifest.json"
 
-def run_all_checks(db_path: Path | None = None) -> dict[str, Any]:
-    """
-    Exécute tous les health checks et retourne un rapport consolidé.
-    Utilisé par le endpoint /monitoring et par le script de monitoring.
-    """
+    result = {
+        "check": "metadata_assets",
+        "status": "ok",
+        "atlas_bundle_exists": atlas_bundle.exists(),
+        "manifest_exists": manifest.exists(),
+    }
+    if not atlas_bundle.exists() or not manifest.exists():
+        missing = []
+        if not atlas_bundle.exists():
+            missing.append("atlas_bundle.json")
+        if not manifest.exists():
+            missing.append("datalake_manifest.json")
+        alert = emit_alert(
+            category="PIPELINE",
+            severity="WARNING",
+            message=f"Metadata assets missing: {', '.join(missing)}",
+            details={"missing": missing},
+        )
+        result["status"] = "warning"
+        result["alert"] = alert
+        return result
+
+    emit_alert(
+        category="PIPELINE",
+        severity="INFO",
+        message="Metadata assets available",
+        details={"atlas_bundle": str(atlas_bundle), "manifest": str(manifest)},
+    )
+    return result
+
+
+def run_all_checks(
+    db_path: Path | None = None,
+    min_rows_override: int | None = None,
+) -> dict[str, Any]:
+    """Run all checks and return one consolidated monitoring report."""
     checks = [
         check_database_health(db_path),
         check_data_freshness(db_path),
-        check_data_volume(db_path),
+        check_data_volume(db_path, min_rows_override=min_rows_override),
+        check_metadata_assets(),
     ]
 
     overall = "ok"
@@ -270,7 +273,7 @@ def run_all_checks(db_path: Path | None = None) -> dict[str, Any]:
             break
         if check["status"] == "error" and overall != "critical":
             overall = "error"
-        if check["status"] == "warning" and overall in ("ok",):
+        if check["status"] == "warning" and overall == "ok":
             overall = "warning"
 
     report = {

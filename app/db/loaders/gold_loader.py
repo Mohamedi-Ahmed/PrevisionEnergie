@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -9,6 +10,7 @@ import pandas as pd
 
 from app.core.logger import get_logger
 from app.db.connection import get_connection
+from app.processing.normalizers import normalize_region_values
 
 
 logger = get_logger(__name__)
@@ -39,6 +41,8 @@ WEEKDAY_NAMES = {
     6: "Sunday",
 }
 
+# Local enrichment used to make the demo dimension easier to read.
+# This mapping is not presented as a canonical business referential.
 REGION_ENRICHMENT = {
     "auvergne-rhone-alpes": {"macro_region": "South-East", "climate_zone": "continental", "territory_type": "metropolitan"},
     "bourgogne-franche-comte": {"macro_region": "East", "climate_zone": "continental", "territory_type": "metropolitan"},
@@ -89,6 +93,7 @@ class SilverToGoldLoader:
             return GoldLoadResult(0, 0, 0, 0, 0, 0).to_dict()
 
         silver_df = self._prepare_silver(silver_df)
+        silver_df = self._collapse_to_gold_grain(silver_df)
         date_df = self._build_dim_date(silver_df)
         region_df = self._build_dim_region(silver_df)
         energy_df = self._build_dim_energy()
@@ -101,8 +106,9 @@ class SilverToGoldLoader:
             self._load_dim_energy(connection, energy_df)
             self._load_dim_weather(connection, weather_df)
             fact_df = self._build_fact(connection, silver_df)
+            self._validate_fact_dimension_keys(fact_df)
             self._load_fact(connection, fact_df)
-            self._refresh_service_table(connection, service_df)
+            self._merge_service_table(connection, service_df)
             connection.commit()
 
         result = GoldLoadResult(
@@ -126,6 +132,7 @@ class SilverToGoldLoader:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df[df["date"].notna()].copy()
         df["region"] = df["region"].fillna("Unknown").astype(str).str.strip()
+        df = normalize_region_values(df, column_name="region")
         for column in [
             "electricity_consumption",
             "gas_consumption",
@@ -141,6 +148,46 @@ class SilverToGoldLoader:
             if column in df.columns:
                 df[column] = pd.to_numeric(df[column], errors="coerce")
         return df
+
+    def _collapse_to_gold_grain(self, df: pd.DataFrame) -> pd.DataFrame:
+        grouped_keys = ["date", "region"]
+        if not df.duplicated(subset=grouped_keys).any():
+            return df.sort_values(grouped_keys).reset_index(drop=True)
+
+        logger.info(
+            "Collapsing Silver duplicates to Gold grain | input_rows=%s | duplicated_grain_rows=%s",
+            len(df),
+            int(df.duplicated(subset=grouped_keys, keep=False).sum()),
+        )
+
+        aggregations: dict[str, str | callable] = {
+            "source_name": self._merge_source_names,
+            "is_weekend": "max",
+            "month": "max",
+            "year": "max",
+        }
+        for column in [
+            "electricity_consumption",
+            "gas_consumption",
+            "temperature_mean",
+            "temperature_min",
+            "temperature_max",
+            "humidity",
+            "wind_speed",
+            "precipitation",
+            "dju_heating",
+            "dju_cooling",
+        ]:
+            if column in df.columns:
+                aggregations[column] = "mean"
+
+        collapsed_df = (
+            df.groupby(grouped_keys, as_index=False)
+            .agg(aggregations)
+            .sort_values(grouped_keys)
+            .reset_index(drop=True)
+        )
+        return collapsed_df
 
     def _build_dim_date(self, df: pd.DataFrame) -> pd.DataFrame:
         dates = pd.DataFrame({"full_date": sorted(df["date"].dt.normalize().drop_duplicates())})
@@ -161,12 +208,23 @@ class SilverToGoldLoader:
         return dates
 
     def _build_dim_region(self, df: pd.DataFrame) -> pd.DataFrame:
-        current_date = datetime.utcnow().strftime("%Y-%m-%d")
-        regions = pd.DataFrame({"region_name": sorted(df["region"].dropna().astype(str).str.strip().unique())})
+        current_date = datetime.utcnow().isoformat()
+        regions = pd.DataFrame({"region_name": df["region"].dropna().astype(str).str.strip()})
         regions["region_code"] = regions["region_name"].map(self._slugify)
-        regions["macro_region"] = regions["region_code"].map(lambda key: REGION_ENRICHMENT.get(key, {}).get("macro_region", "Unknown"))
-        regions["climate_zone"] = regions["region_code"].map(lambda key: REGION_ENRICHMENT.get(key, {}).get("climate_zone", "temperate"))
-        regions["territory_type"] = regions["region_code"].map(lambda key: REGION_ENRICHMENT.get(key, {}).get("territory_type", "metropolitan"))
+        regions = (
+            regions.groupby("region_code", as_index=False)["region_name"]
+            .agg(self._select_region_name)
+        )
+        # Keep a few descriptive attributes so dim_region is easy to comment live.
+        regions["macro_region"] = regions["region_code"].map(
+            lambda key: REGION_ENRICHMENT.get(key, {}).get("macro_region", "Unknown")
+        )
+        regions["climate_zone"] = regions["region_code"].map(
+            lambda key: REGION_ENRICHMENT.get(key, {}).get("climate_zone", "temperate")
+        )
+        regions["territory_type"] = regions["region_code"].map(
+            lambda key: REGION_ENRICHMENT.get(key, {}).get("territory_type", "metropolitan")
+        )
         regions["valid_from"] = current_date
         regions["valid_to"] = None
         regions["is_current"] = 1
@@ -257,6 +315,7 @@ class SilverToGoldLoader:
                 "gas_consumption": "Gas",
             }
         )
+        fact_df["region_code"] = fact_df["region"].map(self._slugify)
         date_lookup = pd.read_sql_query(
             "SELECT date_key, full_date AS date_str FROM dim_date",
             connection,
@@ -264,10 +323,10 @@ class SilverToGoldLoader:
         fact_df["date_str"] = fact_df["date"].dt.strftime("%Y-%m-%d")
         fact_df = fact_df.merge(date_lookup, on="date_str", how="left")
         region_lookup = pd.read_sql_query(
-            "SELECT region_key, region_name FROM dim_region WHERE is_current = 1",
+            "SELECT region_key, region_code FROM dim_region WHERE is_current = 1",
             connection,
         )
-        fact_df = fact_df.merge(region_lookup, left_on="region", right_on="region_name", how="left")
+        fact_df = fact_df.merge(region_lookup, on="region_code", how="left")
         energy_lookup = pd.read_sql_query(
             "SELECT energy_key, energy_label FROM dim_energy WHERE is_active = 1",
             connection,
@@ -293,9 +352,23 @@ class SilverToGoldLoader:
             ]
         ]
 
+    @staticmethod
+    def _validate_fact_dimension_keys(fact_df: pd.DataFrame) -> None:
+        missing_keys = [
+            column
+            for column in ["date_key", "region_key", "energy_key"]
+            if fact_df[column].isna().any()
+        ]
+        if missing_keys:
+            raise ValueError(f"Missing dimension keys in fact build: {missing_keys}")
+
     def _build_service_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
         service_df = df.copy().sort_values(["region", "date"]) 
         service_df["feature_date"] = service_df["date"].dt.strftime("%Y-%m-%d")
+        service_df["electricity_lag_1"] = service_df.groupby("region")["electricity_consumption"].shift(1)
+        service_df["electricity_lag_7"] = service_df.groupby("region")["electricity_consumption"].shift(7)
+        service_df["gas_lag_1"] = service_df.groupby("region")["gas_consumption"].shift(1)
+        service_df["gas_lag_7"] = service_df.groupby("region")["gas_consumption"].shift(7)
         service_df["electricity_avg_7d"] = (
             service_df.groupby("region")["electricity_consumption"]
             .transform(lambda series: series.rolling(7, min_periods=1).mean())
@@ -348,6 +421,10 @@ class SilverToGoldLoader:
             "is_weekend",
             "month",
             "year",
+            "electricity_lag_1",
+            "electricity_lag_7",
+            "gas_lag_1",
+            "gas_lag_7",
             "electricity_avg_7d",
             "electricity_avg_30d",
             "gas_avg_7d",
@@ -394,17 +471,53 @@ class SilverToGoldLoader:
 
     def _load_dim_region(self, connection: sqlite3.Connection, df: pd.DataFrame) -> None:
         existing_df = pd.read_sql_query(
-            "SELECT region_key, region_code, attr_hash_md5, is_current FROM dim_region WHERE is_current = 1",
+            "SELECT region_key, region_code, attr_hash_md5, valid_from, is_current FROM dim_region",
             connection,
         )
         upserts = []
         for row in df.to_dict(orient="records"):
-            existing = existing_df[existing_df["region_code"] == row["region_code"]]
-            if existing.empty:
+            current = existing_df[
+                (existing_df["region_code"] == row["region_code"]) & (existing_df["is_current"] == 1)
+            ]
+            if current.empty:
                 upserts.append(row)
                 continue
-            existing_hash = existing.iloc[0]["attr_hash_md5"]
+            existing_hash = current.iloc[0]["attr_hash_md5"]
             if existing_hash != row["attr_hash_md5"]:
+                same_version = existing_df[
+                    (existing_df["region_code"] == row["region_code"])
+                    & (existing_df["attr_hash_md5"] == row["attr_hash_md5"])
+                    & (existing_df["valid_from"] == row["valid_from"])
+                ]
+                if not same_version.empty:
+                    same_version_key = int(same_version.iloc[0]["region_key"])
+                    connection.execute(
+                        """
+                        UPDATE dim_region
+                        SET is_current = 0,
+                            valid_to = :valid_to,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE region_code = :region_code
+                          AND is_current = 1
+                          AND region_key <> :region_key
+                        """,
+                        {
+                            "valid_to": row["valid_from"],
+                            "region_code": row["region_code"],
+                            "region_key": same_version_key,
+                        },
+                    )
+                    connection.execute(
+                        """
+                        UPDATE dim_region
+                        SET valid_to = NULL,
+                            is_current = 1,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE region_key = :region_key
+                        """,
+                        {"region_key": same_version_key},
+                    )
+                    continue
                 connection.execute(
                     """
                     UPDATE dim_region
@@ -483,14 +596,66 @@ class SilverToGoldLoader:
         records = df.where(pd.notna(df), None).to_dict(orient="records")
         connection.executemany(sql, records)
 
-    def _refresh_service_table(self, connection: sqlite3.Connection, df: pd.DataFrame) -> None:
-        connection.execute("DELETE FROM gold_daily_features")
-        sql = """
+    def _merge_service_table(self, connection: sqlite3.Connection, df: pd.DataFrame) -> None:
+        stage_table = "tmp_gold_daily_features_stage"
+        connection.execute(f"DROP TABLE IF EXISTS {stage_table}")
+        connection.execute(
+            f"""
+            CREATE TEMP TABLE {stage_table} AS
+            SELECT
+                feature_date, region, electricity_consumption, gas_consumption,
+                temperature_mean, temperature_min, temperature_max, humidity,
+                wind_speed, precipitation, dju_heating, dju_cooling, is_weekend,
+                month, year, electricity_lag_1, electricity_lag_7, gas_lag_1,
+                gas_lag_7, electricity_avg_7d, electricity_avg_30d, gas_avg_7d,
+                gas_avg_30d, temperature_avg_7d, dju_heating_sum_7d,
+                dju_heating_sum_30d, precipitation_sum_7d, precipitation_sum_30d
+            FROM gold_daily_features
+            WHERE 1 = 0
+            """
+        )
+
+        stage_insert_sql = f"""
+            INSERT INTO {stage_table} (
+                feature_date, region, electricity_consumption, gas_consumption,
+                temperature_mean, temperature_min, temperature_max, humidity,
+                wind_speed, precipitation, dju_heating, dju_cooling, is_weekend,
+                month, year, electricity_lag_1, electricity_lag_7, gas_lag_1,
+                gas_lag_7, electricity_avg_7d, electricity_avg_30d, gas_avg_7d,
+                gas_avg_30d, temperature_avg_7d, dju_heating_sum_7d,
+                dju_heating_sum_30d, precipitation_sum_7d, precipitation_sum_30d
+            ) VALUES (
+                :feature_date, :region, :electricity_consumption, :gas_consumption,
+                :temperature_mean, :temperature_min, :temperature_max, :humidity,
+                :wind_speed, :precipitation, :dju_heating, :dju_cooling, :is_weekend,
+                :month, :year, :electricity_lag_1, :electricity_lag_7, :gas_lag_1,
+                :gas_lag_7, :electricity_avg_7d, :electricity_avg_30d, :gas_avg_7d,
+                :gas_avg_30d, :temperature_avg_7d, :dju_heating_sum_7d,
+                :dju_heating_sum_30d, :precipitation_sum_7d, :precipitation_sum_30d
+            )
+        """
+        records = df.where(pd.notna(df), None).to_dict(orient="records")
+        connection.executemany(stage_insert_sql, records)
+
+        connection.execute(
+            f"""
+            DELETE FROM gold_daily_features
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {stage_table} AS stage
+                WHERE stage.feature_date = gold_daily_features.feature_date
+                  AND stage.region = gold_daily_features.region
+            )
+            """
+        )
+
+        merge_sql = """
             INSERT INTO gold_daily_features (
                 feature_date, region, electricity_consumption, gas_consumption,
                 temperature_mean, temperature_min, temperature_max, humidity,
                 wind_speed, precipitation, dju_heating, dju_cooling, is_weekend,
-                month, year, electricity_avg_7d, electricity_avg_30d, gas_avg_7d,
+                month, year, electricity_lag_1, electricity_lag_7, gas_lag_1,
+                gas_lag_7, electricity_avg_7d, electricity_avg_30d, gas_avg_7d,
                 gas_avg_30d, temperature_avg_7d, dju_heating_sum_7d,
                 dju_heating_sum_30d, precipitation_sum_7d, precipitation_sum_30d,
                 updated_at
@@ -498,31 +663,52 @@ class SilverToGoldLoader:
                 :feature_date, :region, :electricity_consumption, :gas_consumption,
                 :temperature_mean, :temperature_min, :temperature_max, :humidity,
                 :wind_speed, :precipitation, :dju_heating, :dju_cooling, :is_weekend,
-                :month, :year, :electricity_avg_7d, :electricity_avg_30d, :gas_avg_7d,
+                :month, :year, :electricity_lag_1, :electricity_lag_7, :gas_lag_1,
+                :gas_lag_7, :electricity_avg_7d, :electricity_avg_30d, :gas_avg_7d,
                 :gas_avg_30d, :temperature_avg_7d, :dju_heating_sum_7d,
                 :dju_heating_sum_30d, :precipitation_sum_7d, :precipitation_sum_30d,
                 CURRENT_TIMESTAMP
             )
+            ON CONFLICT(feature_date, region) DO UPDATE SET
+                electricity_consumption = excluded.electricity_consumption,
+                gas_consumption = excluded.gas_consumption,
+                temperature_mean = excluded.temperature_mean,
+                temperature_min = excluded.temperature_min,
+                temperature_max = excluded.temperature_max,
+                humidity = excluded.humidity,
+                wind_speed = excluded.wind_speed,
+                precipitation = excluded.precipitation,
+                dju_heating = excluded.dju_heating,
+                dju_cooling = excluded.dju_cooling,
+                is_weekend = excluded.is_weekend,
+                month = excluded.month,
+                year = excluded.year,
+                electricity_lag_1 = excluded.electricity_lag_1,
+                electricity_lag_7 = excluded.electricity_lag_7,
+                gas_lag_1 = excluded.gas_lag_1,
+                gas_lag_7 = excluded.gas_lag_7,
+                electricity_avg_7d = excluded.electricity_avg_7d,
+                electricity_avg_30d = excluded.electricity_avg_30d,
+                gas_avg_7d = excluded.gas_avg_7d,
+                gas_avg_30d = excluded.gas_avg_30d,
+                temperature_avg_7d = excluded.temperature_avg_7d,
+                dju_heating_sum_7d = excluded.dju_heating_sum_7d,
+                dju_heating_sum_30d = excluded.dju_heating_sum_30d,
+                precipitation_sum_7d = excluded.precipitation_sum_7d,
+                precipitation_sum_30d = excluded.precipitation_sum_30d,
+                updated_at = CURRENT_TIMESTAMP
         """
-        records = df.where(pd.notna(df), None).to_dict(orient="records")
-        connection.executemany(sql, records)
+        connection.executemany(merge_sql, records)
+        connection.execute(f"DROP TABLE IF EXISTS {stage_table}")
 
     @staticmethod
     def _slugify(value: str) -> str:
+        normalized = str(value or "").lower()
+        normalized = normalized.replace("œ", "oe").replace("æ", "ae").replace("’", "'")
         normalized = (
-            value.lower()
-            .replace("é", "e")
-            .replace("è", "e")
-            .replace("ê", "e")
-            .replace("à", "a")
-            .replace("â", "a")
-            .replace("î", "i")
-            .replace("ï", "i")
-            .replace("ô", "o")
-            .replace("ö", "o")
-            .replace("û", "u")
-            .replace("ü", "u")
-            .replace("ç", "c")
+            unicodedata.normalize("NFKD", normalized)
+            .encode("ascii", "ignore")
+            .decode("ascii")
             .replace("'", "-")
             .replace("/", "-")
             .replace(" ", "-")
@@ -530,6 +716,28 @@ class SilverToGoldLoader:
         while "--" in normalized:
             normalized = normalized.replace("--", "-")
         return normalized.strip("-")
+
+    @staticmethod
+    def _select_region_name(values: pd.Series) -> str:
+        candidates = [str(value).strip() for value in values if str(value).strip()]
+        if not candidates:
+            return "Unknown"
+        return max(
+            candidates,
+            key=lambda value: (
+                any(character.isupper() for character in value),
+                any(ord(character) > 127 for character in value),
+                "-" in value or " " in value,
+                len(value),
+            ),
+        )
+
+    @staticmethod
+    def _merge_source_names(values: pd.Series) -> str:
+        unique_sources = sorted({str(value).strip() for value in values if str(value).strip()})
+        if not unique_sources:
+            return "unknown"
+        return ",".join(unique_sources)
 
     @staticmethod
     def _md5(*values: str) -> str:

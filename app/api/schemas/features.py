@@ -19,6 +19,10 @@ class FeatureRecord(BaseModel):
     is_weekend: Optional[int] = None
     month: Optional[int] = None
     year: Optional[int] = None
+    electricity_lag_1: Optional[float] = None
+    electricity_lag_7: Optional[float] = None
+    gas_lag_1: Optional[float] = None
+    gas_lag_7: Optional[float] = None
     electricity_avg_7d: Optional[float] = None
     electricity_avg_30d: Optional[float] = None
     gas_avg_7d: Optional[float] = None

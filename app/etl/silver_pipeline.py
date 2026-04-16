@@ -17,9 +17,9 @@ class SilverPipeline:
             enrich_from_api=enrich_from_api,
         )
 
-    def run(self) -> list[dict[str, str]]:
+    def run(self, bronze_relative_paths: list[str] | None = None) -> list[dict[str, str]]:
         bronze_dir = f"bronze/{self.source_name}"
-        bronze_files = self.storage_backend.list_files(bronze_dir)
+        bronze_files = bronze_relative_paths or self.storage_backend.list_files(bronze_dir)
         results: list[dict[str, str]] = []
 
         if not bronze_files:

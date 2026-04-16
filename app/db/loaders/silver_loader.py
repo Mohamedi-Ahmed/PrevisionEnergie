@@ -39,9 +39,9 @@ class SilverToSQLLoader:
         self.storage_backend = StorageFactory.create()
         self.upsert_sql = (BASE_DIR / "sql" / "dml" / "upsert_silver.sql").read_text(encoding="utf-8")
 
-    def run(self) -> dict[str, int]:
+    def run(self, silver_relative_paths: list[str] | None = None) -> dict[str, int]:
         silver_dir = f"silver/{self.source_name}"
-        silver_files = [
+        silver_files = silver_relative_paths or [
             path
             for path in self.storage_backend.list_files(silver_dir)
             if path.endswith(".csv") and "/quality_reports/" not in path
@@ -53,13 +53,13 @@ class SilverToSQLLoader:
 
         total_rows_loaded = 0
         for silver_path in silver_files:
-            rows_loaded = self._load_file(silver_path)
+            rows_loaded = self.load_file(silver_path)
             total_rows_loaded += rows_loaded
             logger.info("Loaded silver file into SQL | file=%s | rows=%s", silver_path, rows_loaded)
 
         return {"files_processed": len(silver_files), "rows_loaded": total_rows_loaded}
 
-    def _load_file(self, silver_relative_path: str) -> int:
+    def load_file(self, silver_relative_path: str) -> int:
         content = self.storage_backend.read_bytes(silver_relative_path)
         from io import StringIO
         df = pd.read_csv(StringIO(content.decode("utf-8")))

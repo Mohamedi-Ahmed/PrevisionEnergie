@@ -42,6 +42,22 @@ features AS (
         is_weekend,
         month,
         year,
+        LAG(electricity_consumption, 1) OVER (
+            PARTITION BY region
+            ORDER BY feature_date
+        ) AS electricity_lag_1,
+        LAG(electricity_consumption, 7) OVER (
+            PARTITION BY region
+            ORDER BY feature_date
+        ) AS electricity_lag_7,
+        LAG(gas_consumption, 1) OVER (
+            PARTITION BY region
+            ORDER BY feature_date
+        ) AS gas_lag_1,
+        LAG(gas_consumption, 7) OVER (
+            PARTITION BY region
+            ORDER BY feature_date
+        ) AS gas_lag_7,
         AVG(electricity_consumption) OVER (
             PARTITION BY region
             ORDER BY feature_date
@@ -105,6 +121,10 @@ SELECT
     is_weekend,
     month,
     year,
+    electricity_lag_1,
+    electricity_lag_7,
+    gas_lag_1,
+    gas_lag_7,
     electricity_avg_7d,
     electricity_avg_30d,
     gas_avg_7d,

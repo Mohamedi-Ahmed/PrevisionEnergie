@@ -18,7 +18,7 @@ def table_count(connection, table_name: str) -> int:
 
 def main() -> None:
     setup_logging()
-    print("=== Bloc 3 demo summary ===")
+    print("DWH local summary")
     with get_connection() as connection:
         for table_name in [
             "dim_date",
@@ -39,13 +39,14 @@ def main() -> None:
         payload = json.loads(atlas_bundle.read_text(encoding='utf-8'))
         print(f"atlas_sections: {', '.join(payload.keys())}")
 
-    print("docs:")
+    print("reference_files:")
     for relative_path in [
         "docs/block3_dwh.md",
         "docs/block3_governance.md",
         "docs/bloc3_referential_mapping.md",
     ]:
-        print(f"- {relative_path}")
+        exists = (BASE_DIR / relative_path).exists()
+        print(f"- {relative_path} | exists={exists}")
 
 
 if __name__ == "__main__":

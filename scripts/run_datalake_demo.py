@@ -22,7 +22,7 @@ def main() -> None:
     manifest_path = BASE_DIR / "docs" / "datalake_manifest.json"
     atlas_path = BASE_DIR / "atlas" / "atlas_bundle.json"
 
-    print("=== Bloc 4 demo summary ===")
+    print("Data Lake local summary")
     print(f"manifest_exists: {manifest_path.exists()}")
     if manifest_path.exists():
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -33,14 +33,15 @@ def main() -> None:
         payload = json.loads(atlas_path.read_text(encoding="utf-8"))
         print(f"atlas_sections: {', '.join(payload.keys())}")
 
-    print("docs:")
+    print("reference_files:")
     for relative_path in [
         "docs/block4_datalake.md",
         "docs/block4_governance.md",
         "docs/block4_referential_mapping.md",
         "configs/datalake.yaml",
     ]:
-        print(f"- {relative_path}")
+        exists = (BASE_DIR / relative_path).exists()
+        print(f"- {relative_path} | exists={exists}")
 
 
 if __name__ == "__main__":

@@ -15,3 +15,6 @@ htmlcov/
 !/data/**/.gitkeep
 
 prevision_energie.db
+
+backups/
+

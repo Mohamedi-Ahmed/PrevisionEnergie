@@ -15,9 +15,26 @@
       "datasets": [
         "data/bronze/kaggle/demo_pipeline.csv",
         "data/bronze/kaggle/enrich_demo.csv",
+        "data/bronze/kaggle/kaggle_20260410T215825Z.csv",
+        "data/bronze/kaggle/kaggle_20260410T220028Z.csv",
+        "data/bronze/kaggle/kaggle_20260414T123418Z.csv",
+        "data/bronze/kaggle/kaggle_20260414T140327Z.csv",
+        "data/bronze/kaggle/kaggle_20260414T140409Z.csv",
+        "data/bronze/kaggle/kaggle_20260415T155402Z.csv",
+        "data/bronze/kaggle/kaggle_20260415T214544Z.csv",
+        "data/bronze/kaggle/kaggle_20260415T214650Z.csv",
+        "data/bronze/kaggle/kaggle_real_daily.csv",
         "data/bronze/kaggle/review_fix_demo.csv",
         "data/bronze/kaggle/sample_ingested.csv",
-        "data/bronze/rte/enrich_demo.json"
+        "data/bronze/rte/enrich_demo.json",
+        "data/bronze/rte/rte_20260410T215826Z.json",
+        "data/bronze/rte/rte_20260410T220029Z.json",
+        "data/bronze/rte/rte_20260414T123419Z.json",
+        "data/bronze/rte/rte_20260414T140328Z.json",
+        "data/bronze/rte/rte_20260414T140410Z.json",
+        "data/bronze/rte/rte_20260415T155403Z.json",
+        "data/bronze/rte/rte_20260415T214544Z.json",
+        "data/bronze/rte/rte_20260415T214650Z.json"
       ]
     },
     {
@@ -34,10 +51,28 @@
       "datasets": [
         "data/silver/kaggle/quality_reports/quality_demo_pipeline.json",
         "data/silver/kaggle/quality_reports/quality_enrich_demo.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260410T215825Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260410T220028Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260414T123418Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260414T140327Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260414T140409Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260415T155402Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260415T214544Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_20260415T214650Z.json",
+        "data/silver/kaggle/quality_reports/quality_kaggle_real_daily.json",
         "data/silver/kaggle/quality_reports/quality_review_fix_demo.json",
         "data/silver/kaggle/quality_reports/quality_sample_ingested.json",
         "data/silver/kaggle/silver_demo_pipeline.csv",
         "data/silver/kaggle/silver_enrich_demo.csv",
+        "data/silver/kaggle/silver_kaggle_20260410T215825Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260410T220028Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260414T123418Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260414T140327Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260414T140409Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260415T155402Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260415T214544Z.csv",
+        "data/silver/kaggle/silver_kaggle_20260415T214650Z.csv",
+        "data/silver/kaggle/silver_kaggle_real_daily.csv",
         "data/silver/kaggle/silver_review_fix_demo.csv",
         "data/silver/kaggle/silver_sample_ingested.csv"
       ]
@@ -53,7 +88,10 @@
         "data_engineer",
         "data_admin"
       ],
-      "datasets": []
+      "datasets": [
+        "data/gold/exports/ml_metrics.json",
+        "data/gold/exports/ml_predictions.csv"
+      ]
     }
   ]
 }

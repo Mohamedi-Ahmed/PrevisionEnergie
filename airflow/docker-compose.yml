@@ -1,0 +1,26 @@
+services:
+  airflow:
+    build:
+      context: ..
+      dockerfile: airflow/Dockerfile
+    container_name: prevision-energie-airflow
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/prevision-energie/airflow/dags
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      AIRFLOW_DEMO_USERNAME: admin
+      AIRFLOW_DEMO_PASSWORD: admin
+      PREVISION_ENERGIE_PROJECT_DIR: /opt/prevision-energie
+      PYTHONPATH: /opt/prevision-energie
+    volumes:
+      - ..:/opt/prevision-energie
+      - airflow_home:/opt/airflow
+    working_dir: /opt/prevision-energie
+    entrypoint: ["/bin/bash", "/opt/prevision-energie/airflow/entrypoint.sh"]
+
+volumes:
+  airflow_home:

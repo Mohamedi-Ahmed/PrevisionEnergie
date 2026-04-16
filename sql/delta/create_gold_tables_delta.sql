@@ -1,6 +1,9 @@
 -- ============================================================
 -- GOLD LAYER (Bloc 3) - Delta Lake target DDL
 -- Reference DDL for E5 oral / report / future migration
+-- Kimball grain:
+--   fact_energy_consumption_daily = 1 row per day x region x energy
+--   gold_daily_features = service / serving table for API consumption
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS gold.dim_date (
@@ -61,6 +64,7 @@ CREATE TABLE IF NOT EXISTS gold.dim_weather_context (
 ) USING DELTA;
 
 CREATE TABLE IF NOT EXISTS gold.fact_energy_consumption_daily (
+    fact_id BIGINT GENERATED ALWAYS AS IDENTITY,
     date_key INT,
     region_key BIGINT,
     energy_key BIGINT,
@@ -74,6 +78,40 @@ CREATE TABLE IF NOT EXISTS gold.fact_energy_consumption_daily (
     updated_at TIMESTAMP
 ) USING DELTA
 PARTITIONED BY (date_key);
+
+CREATE TABLE IF NOT EXISTS gold.gold_daily_features (
+    feature_date DATE,
+    region STRING,
+    electricity_consumption DOUBLE,
+    gas_consumption DOUBLE,
+    temperature_mean DOUBLE,
+    temperature_min DOUBLE,
+    temperature_max DOUBLE,
+    humidity DOUBLE,
+    wind_speed DOUBLE,
+    precipitation DOUBLE,
+    dju_heating DOUBLE,
+    dju_cooling DOUBLE,
+    is_weekend BOOLEAN,
+    month INT,
+    year INT,
+    electricity_lag_1 DOUBLE,
+    electricity_lag_7 DOUBLE,
+    gas_lag_1 DOUBLE,
+    gas_lag_7 DOUBLE,
+    electricity_avg_7d DOUBLE,
+    electricity_avg_30d DOUBLE,
+    gas_avg_7d DOUBLE,
+    gas_avg_30d DOUBLE,
+    temperature_avg_7d DOUBLE,
+    dju_heating_sum_7d DOUBLE,
+    dju_heating_sum_30d DOUBLE,
+    precipitation_sum_7d DOUBLE,
+    precipitation_sum_30d DOUBLE,
+    inserted_at TIMESTAMP,
+    updated_at TIMESTAMP
+) USING DELTA
+PARTITIONED BY (year, month);
 
 -- Example optimization for the fact table
 -- OPTIMIZE gold.fact_energy_consumption_daily ZORDER BY (region_key, energy_key);

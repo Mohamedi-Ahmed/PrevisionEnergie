@@ -51,12 +51,20 @@ class BaseAPIExtractor(BaseExtractor):
             extension=self.default_extension,
         )
         storage_path = f"{self.bronze_subdir}/{filename}"
-        self.storage_backend.write_bytes(relative_path=storage_path, content=content)
+        extracted_at = self.now_utc_iso()
+        record_count = len(payload) if isinstance(payload, list) else 1 if isinstance(payload, dict) else None
+        self.write_bronze_file(
+            storage_path=storage_path,
+            content=content,
+            extracted_at=extracted_at,
+            record_count=record_count,
+        )
 
         return IngestionResult(
             source_name=self.source_name,
             storage_path=storage_path,
-            extracted_at=self.now_utc_iso(),
+            extracted_at=extracted_at,
+            record_count=record_count,
             content_type="application/json",
             metadata=metadata or {},
         )

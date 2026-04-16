@@ -1,24 +1,22 @@
-# ============================================================
-# Monitoring & SLA configuration — PrevisionEnergie
-# ============================================================
+# Monitoring and SLA configuration used by the local demo.
 
 sla:
-  # Indicateurs de niveau de service
+  # Simple thresholds shown during the governance walkthrough.
   pipeline_max_duration_minutes: 30
   data_freshness_max_hours: 48
   api_response_time_ms: 500
   api_uptime_target_percent: 99.0
-  gold_min_row_count: 100
+  gold_min_row_count: 5
 
 alerts:
-  # Seuils de déclenchement des alertes
+  # Alert levels kept small on purpose for the demo dataset.
   freshness:
     enabled: true
     max_hours_since_last_load: 48
     severity: WARNING
   volume:
     enabled: true
-    min_expected_rows: 50
+    min_expected_rows: 5
     severity: ERROR
   database:
     enabled: true
@@ -29,7 +27,7 @@ alerts:
     check_interval_minutes: 5
     severity: CRITICAL
 
-  # Canal de notification (extensible : email, slack, webhook)
+  # Log-only notification channel in local mode.
   notification:
     channel: log
     # email_to: ops@prevision-energie.fr  # production
@@ -37,7 +35,7 @@ alerts:
 
 backup:
   enabled: true
-  schedule: "0 2 * * *"  # cron : chaque nuit à 2h
+  schedule: "0 2 * * *"  # local example: nightly backup
   strategy:
     partial:
       frequency: daily

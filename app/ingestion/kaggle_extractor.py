@@ -53,7 +53,14 @@ class KaggleExtractor(BaseExtractor):
             extension=extension,
         )
         storage_path = f"{self.bronze_subdir}/{filename}"
-        self.storage_backend.write_bytes(relative_path=storage_path, content=content)
+        extracted_at = self.now_utc_iso()
+        record_count = self.estimate_csv_record_count(content)
+        self.write_bronze_file(
+            storage_path=storage_path,
+            content=content,
+            extracted_at=extracted_at,
+            record_count=record_count,
+        )
 
         payload_metadata = metadata or {}
         if source_file_path:
@@ -64,7 +71,8 @@ class KaggleExtractor(BaseExtractor):
         return IngestionResult(
             source_name=self.source_name,
             storage_path=storage_path,
-            extracted_at=self.now_utc_iso(),
+            extracted_at=extracted_at,
+            record_count=record_count,
             content_type="text/csv",
             metadata=payload_metadata,
         )
